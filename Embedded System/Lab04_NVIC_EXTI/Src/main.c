@@ -40,6 +40,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -65,13 +66,13 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-uint8_t num=0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-void delay(uint32_t);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -107,38 +108,23 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-	// Ex.2
-	const unsigned short count_c = 1; // 1 = count up (0->7) , 0 = count down (7->0)
-	int8_t count = count_c;
   while (1)
   {
+		while(__HAL_UART_GET_FLAG(&huart2,UART_FLAG_TC)==RESET);
+		HAL_UART_Transmit(&huart2, (uint8_t*) "X", 1,1000);
+		HAL_Delay(300);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-		/*
-		// Ex.1
-		if(num<=7) num++;
-		else num =0;
-		HAL_GPIO_TogglePin(GPIOA,GPIO_PIN_5);
-		HAL_Delay(500);
-		//delay(500);
-		*/
-		
-		// Ex.2
-		delay(300);
-		HAL_GPIO_TogglePin(GPIOA,GPIO_PIN_5);
-		if(count % 2 == 0) HAL_GPIO_TogglePin(GPIOA,GPIO_PIN_6);
-		if(count % 4 == 0) HAL_GPIO_TogglePin(GPIOA,GPIO_PIN_7);
-		if((++count) == (8 + count_c)) count = count_c;
   }
   /* USER CODE END 3 */
-
 }
 
 /**
@@ -185,10 +171,7 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-void delay(uint32_t ms){
-	volatile uint32_t i,j,k;
-	for(i=0; i<ms; i++) for(j=0; j<6660; j++) k++;
-}
+
 /* USER CODE END 4 */
 
 /**

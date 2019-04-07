@@ -40,11 +40,13 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "tim.h"
+#include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "string.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -65,13 +67,13 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-uint8_t num=0;
+uint8_t pwm;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-void delay(uint32_t);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -107,38 +109,68 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_TIM2_Init();
+  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-	// Ex.2
-	const unsigned short count_c = 1; // 1 = count up (0->7) , 0 = count down (7->0)
-	int8_t count = count_c;
+	/*
+	float dutyCycle = 0.25;
+	uint32_t adjust = 0;
+	*/
+	uint32_t r=0,g=0,b=0;
+	char str[] = "Display Blinking LED PRESS (r, g, b) to adjust LED 6 steps.\r\n";
+	HAL_UART_Transmit(&huart2, (uint8_t*) str, strlen(str),1000);
+	while(__HAL_UART_GET_FLAG(&huart2, UART_FLAG_TC)==RESET);
   while (1)
   {
+		//Receive
+		char Receive[1];
+		while(__HAL_UART_GET_FLAG(&huart2,UART_FLAG_RXNE)==RESET);
+		HAL_UART_Receive(&huart2, (uint8_t*) &Receive, 1, 1000);
+		//Transmit data of receive
+		if(Receive[0] == 'r' || Receive[0] == 'R') {
+			r++;
+		} else if(Receive[0] == 'g' || Receive[0] == 'G') {
+			g++;
+		} else if(Receive[0] == 'b' || Receive[0] == 'B') {
+			b++;
+		} else continue;
+		
+		//Transmit data of receive
+		char Transmit[] = "";
+		sprintf(Transmit,"RGB(%d%%,%d%%,%d%%)\r\n", 20*(r % 6), 20*(g % 6), 20*(b % 6));
+		while(__HAL_UART_GET_FLAG(&huart2,UART_FLAG_TC)==RESET);
+		HAL_UART_Transmit(&huart2, (uint8_t*) &Transmit, strlen(Transmit),1000);
+		
+		htim2.Instance -> CCR3 = (1000-1) * (0.20 * (r % 6));
+		htim2.Instance -> CCR2 = (1000-1) * (0.20 * (g % 6));
+		htim2.Instance -> CCR1 = (1000-1) * (0.20 * (b % 6));
+		HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
+		HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
+		HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+		/*
+		HAL_Delay(1000);
+		HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_3);
+		HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_2);
+		HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
+		*/
+		/*
+		htim2.Instance -> CCR3 = (1000-1) * (dutyCycle * (adjust % 5)); // 5 step 0%, 25%, 50%, 75%, 100%
+		HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
+		HAL_Delay(1000);
+		HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_3);
+		pwm = (GPIOB->IDR&0x400U)>>10;
+		adjust++;
+		*/
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-		/*
-		// Ex.1
-		if(num<=7) num++;
-		else num =0;
-		HAL_GPIO_TogglePin(GPIOA,GPIO_PIN_5);
-		HAL_Delay(500);
-		//delay(500);
-		*/
-		
-		// Ex.2
-		delay(300);
-		HAL_GPIO_TogglePin(GPIOA,GPIO_PIN_5);
-		if(count % 2 == 0) HAL_GPIO_TogglePin(GPIOA,GPIO_PIN_6);
-		if(count % 4 == 0) HAL_GPIO_TogglePin(GPIOA,GPIO_PIN_7);
-		if((++count) == (8 + count_c)) count = count_c;
   }
   /* USER CODE END 3 */
-
 }
 
 /**
@@ -185,10 +217,7 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-void delay(uint32_t ms){
-	volatile uint32_t i,j,k;
-	for(i=0; i<ms; i++) for(j=0; j<6660; j++) k++;
-}
+
 /* USER CODE END 4 */
 
 /**

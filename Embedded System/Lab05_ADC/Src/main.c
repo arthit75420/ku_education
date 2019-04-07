@@ -40,11 +40,13 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "adc.h"
+#include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "string.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -65,13 +67,13 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-uint8_t num=0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-void delay(uint32_t);
+void displayHEX(uint32_t);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -107,38 +109,39 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_USART2_UART_Init();
+  MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-	// Ex.2
-	const unsigned short count_c = 1; // 1 = count up (0->7) , 0 = count down (7->0)
-	int8_t count = count_c;
+	volatile uint32_t adc_val = 0;
+	HAL_ADC_Start(&hadc1);
   while (1)
   {
+		while(HAL_ADC_PollForConversion(&hadc1,500) != HAL_OK);
+		adc_val = HAL_ADC_GetValue(&hadc1);
+		if(adc_val > 3500){
+			GPIOC->ODR = 0xf;
+		} else if(adc_val > 1200){
+			GPIOC->ODR = 0x7;
+		} else if(adc_val > 450){
+			GPIOC->ODR = 0x3;
+		} else if(adc_val > 80){
+			GPIOC->ODR = 0x1;
+		} else {
+			GPIOC->ODR = 0x0;
+		}
+		//rate = adc_val / 819;
+		displayHEX(adc_val);
+		HAL_Delay(300);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-		/*
-		// Ex.1
-		if(num<=7) num++;
-		else num =0;
-		HAL_GPIO_TogglePin(GPIOA,GPIO_PIN_5);
-		HAL_Delay(500);
-		//delay(500);
-		*/
-		
-		// Ex.2
-		delay(300);
-		HAL_GPIO_TogglePin(GPIOA,GPIO_PIN_5);
-		if(count % 2 == 0) HAL_GPIO_TogglePin(GPIOA,GPIO_PIN_6);
-		if(count % 4 == 0) HAL_GPIO_TogglePin(GPIOA,GPIO_PIN_7);
-		if((++count) == (8 + count_c)) count = count_c;
   }
   /* USER CODE END 3 */
-
 }
 
 /**
@@ -185,9 +188,11 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-void delay(uint32_t ms){
-	volatile uint32_t i,j,k;
-	for(i=0; i<ms; i++) for(j=0; j<6660; j++) k++;
+void displayHEX(uint32_t value){
+	char str[13];
+	sprintf(str, "0x%08x\r\n", value);
+	while(__HAL_UART_GET_FLAG(&huart2,UART_FLAG_TC)==RESET);
+	HAL_UART_Transmit(&huart2, (uint8_t*) str, strlen(str),1000);
 }
 /* USER CODE END 4 */
 
